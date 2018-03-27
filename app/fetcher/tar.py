@@ -27,6 +27,7 @@ class tarFetcher:
             self.remote = remote
         self.workspace = getConfigurationItem(conffile, 'fetcher', 'workspace')
         machine = runningDevice(conffile)
+        machine = "intel-nuc"
         self.remotefile = os.path.join(self.remote, "resinos-" + machine, "resinhup-" + version + ".tar.gz")
         self.updatefilestream = None
         self.workspaceunpack = os.path.join(self.workspace, "update")
