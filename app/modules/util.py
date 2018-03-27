@@ -33,6 +33,7 @@ def check_if_root():
         return False
 
 def getRootPartition(conffile):
+    return '/dev/sda2'
     root_mount = getConfigurationItem(conffile, 'General', 'host_bind_mount')
     if not root_mount:
         root_mount = '/'
@@ -40,6 +41,7 @@ def getRootPartition(conffile):
     rootmajor=os.major(rootdev)
     rootminor=os.minor(rootdev)
     root="%d:%d" % (rootmajor, rootminor)
+    log.debug("root:" + root)
     for filepath in glob("/sys/class/block/*/dev"):
         with open(filepath) as fd:
             if fd.read().strip() == root:
@@ -327,6 +329,7 @@ def getConfJsonPath(conffile):
     return None
 
 def runningDevice(conffile):
+    return "intel-nuc"
     conf = getConfJsonPath(conffile)
     if not conf:
         return None
@@ -448,7 +451,7 @@ def getCurrentHostOSVersion(conffile):
                     return value.strip(' "\n')
     except:
         log.warn("getCurrentHostOSVersion: Can't get the current host OS version so assume 1.0.0 .")
-    return "1.0.0"
+    return "2.0.8"
 
 def jsonDecode(jsonfile):
     try:

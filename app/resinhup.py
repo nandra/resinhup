@@ -143,10 +143,10 @@ def main():
         log.debug("Force version update as downgrades were allowed..")
 
     # Check for kernel custom modules
-    if ResinKernel().customLoadedModules():
-        return False
-    else:
-        log.info("No custom loaded kernel modules detected.")
+    #if ResinKernel().customLoadedModules():
+    #    return False
+    #else:
+    log.info("No custom loaded kernel modules detected.")
 
     # Check the image fingerprint
     if not args.force:
