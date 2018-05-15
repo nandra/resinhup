@@ -623,6 +623,22 @@ function find_partitions {
     log "Update partition: ${update_part}"
 }
 
+#######################################
+# In some cases, the state partition does not have the required `resin-state` label
+# and upon reboot the device would be inoperable. Apply that label as needed.
+# Globals:
+#   root_dev
+#   state_part
+# Returns:
+#   None
+#######################################
+function fix_state_label() {
+    if [ "${state_part}" != "/mnt/state" ]; then
+        log "Need to apply proper state partition label."
+        e2label ${root_dev}5 "resin-state"
+    fi
+}
+
 function finish_up() {
     sync
     if [ "${NOREBOOT}" == "no" ]; then
@@ -864,7 +880,7 @@ if ! version_gt "$VERSION" "$preferred_hostos_version" &&
     ! [ "$VERSION" == "$preferred_hostos_version" ]; then
     log "Host OS version $VERSION is less than $preferred_hostos_version, installing tools..."
     tools_path=/tmp/upgrade_tools
-    tools_binaries="tar"
+    tools_binaries="tar e2label"
     mkdir -p $tools_path
     export PATH=$tools_path:$PATH
     case $binary_type in
@@ -926,15 +942,23 @@ if version_gt "$VERSION_ID" "2.9.7" &&
           mount -o bind /tmp/fixed-update-resin-supervisor /usr/bin/update-resin-supervisor
 fi
 
+# Check the location of the state partition
+state_part="/mnt/state"
+if [ ! -d "${state_part}" ] &&  [ -d "/mnt/conf" ] ; then
+    state_part="/mnt/conf"
+else
+    log ERROR "Could not find the state partition..."
+fi
+
 # The timesyncd.conf lives on the state partition starting from resinOS 2.1.0
 # For devices that were updated before this fix came to effect, fix things up, otherwise migrate when updating
-if [ -d "/mnt/state/root-overlay/etc/systemd/timesyncd.conf" ]; then
-    rm -rf "/mnt/state/root-overlay/etc/systemd/timesyncd.conf"
-    cp "/etc/systemd/timesyncd.conf" "/mnt/state/root-overlay/etc/systemd/timesyncd.conf"
+if [ -d "${state_part}/root-overlay/etc/systemd/timesyncd.conf" ]; then
+    rm -rf "${state_part}/root-overlay/etc/systemd/timesyncd.conf"
+    cp "/etc/systemd/timesyncd.conf" "${state_part}/root-overlay/etc/systemd/timesyncd.conf"
     systemctl restart etc-systemd-timesyncd.conf.mount
     log "timesyncd.conf mount service fixed up"
-elif ! [ -f "/mnt/state/root-overlay/etc/systemd/timesyncd.conf" ] && version_gt "$target_version" "2.1.0"; then
-    cp "/etc/systemd/timesyncd.conf" "/mnt/state/root-overlay/etc/systemd/timesyncd.conf"
+elif ! [ -f "${state_part}/root-overlay/etc/systemd/timesyncd.conf" ] && version_gt "$target_version" "2.1.0"; then
+    cp "/etc/systemd/timesyncd.conf" "${state_part}/root-overlay/etc/systemd/timesyncd.conf"
     log "timesyncd.conf migrated to the state partition"
 fi
 
@@ -959,6 +983,7 @@ elif version_gt "${target_version}" "${minimum_hostapp_target_version}" ||
     log "Running update from a non-hostapp-update enabled version to a hostapp-update enabled version..."
     progress 50 "Running OS update"
     non_hostapp_to_hostapp_update "${image}"
+    fix_state_label
 
     upgrade_supervisor "${image}" no_docker_host
 
@@ -1031,7 +1056,7 @@ upgrade_supervisor "$image" no_docker_host
 
 # REmove resin-sample to plug security hole
 remove_sample_wifi "/mnt/boot/system-connections/resin-sample"
-remove_sample_wifi "/mnt/state/root-overlay/etc/NetworkManager/system-connections/resin-sample"
+remove_sample_wifi "${state_part}/root-overlay/etc/NetworkManager/system-connections/resin-sample"
 
 # Switch root partition
 log "Switching root partition..."
